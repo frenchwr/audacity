@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+MODELS="${SNAP_DATA}/openvino-models"
+
+# TODO: suppress output
+# TODO: add interactive menu
+# TODO: require run with sudo
+MUSICGEN_TMP="${SNAP_DATA}/musicgen_tmp"
+MUSICGEN="${MODELS}/musicgen"
+git clone https://huggingface.co/Intel/musicgen-static-openvino "${MUSICGEN_TMP}"
+cd "${MUSICGEN_TMP}"
+git lfs install
+git lfs pull
+mkdir -p "${MUSICGEN}"
+unzip "${MUSICGEN_TMP}/musicgen_small_enc_dec_tok_openvino_models.zip" -d "${MUSICGEN}"
+unzip "${MUSICGEN_TMP}/musicgen_small_mono_openvino_models.zip" -d "${MUSICGEN}"
+unzip "${MUSICGEN_TMP}/musicgen_small_stereo_openvino_models.zip" -d "${MUSICGEN}"
+rm -rf "${MUSICGEN_TMP}"
