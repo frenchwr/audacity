@@ -1,6 +1,7 @@
 name: audacity
 version: 4.0.0
 adopt-info: audacity
+summary: Audio editor and recorder
 description: |
   Audacity® is a free, easy-to-use, multi-track audio editor and recorder for Windows,
   Mac OS X, GNU/Linux and other operating systems. The interface is translated into
@@ -80,11 +81,11 @@ plugs:
 
 apps:
   audacity:
-    extensions: [gnome]
+    extensions: [kde-neon-6]
     command: usr/bin/audacity
     command-chain:
     - snap/command-chain/alsa-launch
-    desktop: usr/share/applications/audacity.desktop
+    desktop: usr/share/applications/org.audacityteam.Audacity.desktop
     common-id: org.audacityteam.Audacity
     plugs:
       - alsa
@@ -117,12 +118,26 @@ parts:
     plugin: dump
     source: https://github.com/diddlesnaps/snapcraft-alsa.git
     source-subdir: snapcraft-assets
+    override-pull: |
+      craftctl default
+      sed -i '/echo "...and using ALSA."/a\      setup_alsa_override' snapcraft-assets/snap/command-chain/alsa-launch
     build-packages:
       - libasound2-dev
     stage-packages:
       - libasound2t64
       - libasound2-plugins
       - yad
+    # These codec libraries are pulled transitively by libasound2-plugins,
+    # but the audacity part also installs them. Let audacity own these paths
+    # to avoid staging conflicts between different builds of the same SONAMEs.
+    stage:
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libFLAC.so*
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libmp3lame.so*
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libogg.so*
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libopus.so*
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libsndfile.so*
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libvorbis.so*
+      - -usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libvorbisenc.so*
 
   openvino-tokenizers-extension:
     source-type: git
@@ -208,19 +223,17 @@ parts:
     plugin: cmake
     source: https://github.com/audacity/audacity.git
     source-tag: Audacity-$SNAPCRAFT_PROJECT_VERSION
-    parse-info: [usr/share/metainfo/audacity.appdata.xml]
+    parse-info: [usr/share/metainfo/org.audacityteam.Audacity.appdata.xml]
     override-pull: |
       craftctl default
-      sed -i -E 's|Icon=.*|Icon=/usr/share/icons/hicolor/scalable/apps/audacity.svg|' src/audacity.desktop.in
-      sed -i -E 's|Exec=env GDK_BACKEND=x11 UBUNTU_MENUPROXY=0 |Exec=|' src/audacity.desktop.in
+      sed -i -E 's|Name=.*|Name=Audacity|' buildscripts/packaging/Linux+BSD/org.audacityteam.Audacity.desktop.in
       # mod-opus broken with "Error: inappropriate ioctl for device". This disables it.
-      sed -i '/mod-opus/d' libraries/lib-module-manager/ModuleSettings.cpp
+      sed -i '/mod-opus/d' au3/libraries/au3-module-manager/ModuleSettings.cpp
       if [ "$CRAFT_ARCH_BUILD_FOR" == "amd64" ]; then
-        sed -i '/mod-opus/d' libraries/lib-module-manager/ModuleSettings.cpp
-        sed -i '/"mod-aup",/a\      "mod-openvino",' libraries/lib-module-manager/ModuleSettings.cpp
+        sed -i '/"mod-aup",/a\        "mod-openvino",' au3/libraries/au3-module-manager/ModuleSettings.cpp
         git clone --depth 1 --branch v3.7.1-R4.2 https://github.com/intel/openvino-plugins-ai-audacity.git
-        cp -r openvino-plugins-ai-audacity/mod-openvino ${CRAFT_PART_SRC}/modules/
-        sed -i '/   sharing/a\    mod-openvino' ${CRAFT_PART_SRC}/modules/CMakeLists.txt
+        cp -r openvino-plugins-ai-audacity/mod-openvino ${CRAFT_PART_SRC}/au3/modules/
+        sed -i '/   sharing/a\   mod-openvino' ${CRAFT_PART_SRC}/au3/modules/CMakeLists.txt
       fi
     cmake-parameters:
       - -DCMAKE_INSTALL_PREFIX=/usr
@@ -236,6 +249,7 @@ parts:
       - -Daudacity_use_ffmpeg=loaded
       - -Daudacity_has_vst3=Off
       - -Daudacity_has_tests=Off
+      - -DAU4_BUILD_MODE=release
       - -DwxBUILD_TOOLKIT=gtk3
     build-environment:
       - PATH: /snap/bin:$PATH
@@ -290,6 +304,7 @@ parts:
       - lv2-dev
       - nasm
       - ocl-icd-opencl-dev
+      - patchelf
       - portaudio19-dev
       - python3-pip
       - rapidjson-dev
